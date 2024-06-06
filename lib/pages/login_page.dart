@@ -14,77 +14,83 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // text editing controllers
+  // Text editing controllers
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  // sign user in method
+  // Sign user in method
   void signUserIn() async {
     // Show loading dialog
-    Future.microtask(() => showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            return const Center(child: CircularProgressIndicator());
-          },
-        ));
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text, password: passwordController.text);
+        email: emailController.text,
+        password: passwordController.text,
+      );
       Navigator.pop(context); // Dismiss loading dialog
     } on FirebaseAuthException catch (e) {
       Navigator.pop(context); // Dismiss loading dialog
       if (e.code == 'user-not-found') {
-        wrongEmailMessage();
+        showErrorDialog('Incorrect Email', 'No user found with this email.');
       } else if (e.code == 'wrong-password') {
-        wrongPasswordMessage();
+        showErrorDialog('Incorrect Password', 'The password is incorrect.');
       }
-      // error handling
     }
   }
 
-  // google sign in method
-  Future<UserCredential> signInWithGoogle() async {
-    // Trigger the authentication flow
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+  // Google sign in method
+  Future<void> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
 
-    // Obtain the auth details from the request
-    final GoogleSignInAuthentication googleAuth =
-        await googleUser!.authentication;
+      if (googleUser == null) {
+        throw FirebaseAuthException(
+          code: 'ERROR_ABORTED_BY_USER',
+          message: 'Sign in aborted by user',
+        );
+      }
 
-    // Create a new credential
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      showErrorDialog('Sign In Failed', 'Error signing in with Google: $e');
+    }
+  }
+
+  // Show error dialog
+  void showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
-
-    // Once signed in, return the UserCredential
-    return await FirebaseAuth.instance.signInWithCredential(credential);
-  }
-
-  void wrongEmailMessage() {
-    Future.microtask(() => showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            return const AlertDialog(
-              title: Text("Incorrect Email"),
-            );
-          },
-        ));
-  }
-
-  void wrongPasswordMessage() {
-    Future.microtask(() => showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            return const AlertDialog(
-              title: Text("Incorrect Password"),
-            );
-          },
-        ));
   }
 
   @override
@@ -99,12 +105,15 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 const SizedBox(height: 50),
 
-                // logo
-                const SquareTile(imagePath: '../lib/images/icon.png'),
+                // Logo
+                SquareTile(
+                  imagePath: '../lib/images/icon.png',
+                  onTap: () {},
+                ),
 
                 const SizedBox(height: 50),
 
-                // welcome back, you've been missed!
+                // Welcome back, you've been missed!
                 Text(
                   'Welcome back you\'ve been missed!',
                   style: TextStyle(
@@ -115,7 +124,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 25),
 
-                // username textfield
+                // Email textfield
                 MyTextField(
                   controller: emailController,
                   hintText: 'Email',
@@ -124,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 10),
 
-                // password textfield
+                // Password textfield
                 MyTextField(
                   controller: passwordController,
                   hintText: 'Password',
@@ -133,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 10),
 
-                // forgot password?
+                // Forgot password?
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -149,7 +158,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 25),
 
-                // sign in button
+                // Sign in button
                 MyButton(
                   onTap: signUserIn,
                   text: 'Sign In',
@@ -157,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 50),
 
-                // or continue with
+                // Or continue with
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -187,41 +196,39 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 50),
 
-                // google + apple sign in buttons
-                // google + apple sign in buttons
+                // Google and Apple sign in buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // google button
+                    // Google button
                     GestureDetector(
-                      onTap: () async {
-                        try {
-                          await signInWithGoogle();
-                        } catch (e) {
-                          // Handle error here
-                          print('Error signing in with Google: $e');
-                        }
-                      },
-                      child: const SquareTile(
-                          imagePath: '../lib/images/google.png', size: 50),
+                      onTap: signInWithGoogle,
+                      child: SquareTile(
+                        imagePath: '../lib/images/google.png',
+                        size: 50,
+                        onTap: signInWithGoogle,
+                      ),
                     ),
 
                     const SizedBox(width: 25),
 
-                    // apple button
+                    // Apple button (to be implemented)
                     GestureDetector(
                       onTap: () {
                         // Implement Apple sign-in here
                       },
-                      child: const SquareTile(
-                          imagePath: '../lib/images/apple.png', size: 50),
+                      child: SquareTile(
+                        onTap: () {},
+                        imagePath: '../lib/images/apple.png',
+                        size: 50,
+                      ),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 50),
 
-                // not a member? register now
+                // Not a member? Register now
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

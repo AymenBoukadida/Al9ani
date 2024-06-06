@@ -1,8 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'package:firstapp/components/my_button.dart';
 import 'package:firstapp/components/my_textfield.dart';
 import 'package:firstapp/components/square_tile.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterPage extends StatefulWidget {
   final Function()? onTap;
@@ -92,6 +96,24 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  Future<UserCredential> signInWithGoogle() async {
+    // Trigger the authentication flow
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+    // Obtain the auth details from the request
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser!.authentication;
+
+    // Create a new credential
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    // Once signed in, return the UserCredential
+    return await FirebaseAuth.instance.signInWithCredential(credential);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,7 +127,9 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 50),
 
                 // logo
-                const SquareTile(imagePath: '../lib/images/icon.png'),
+                SquareTile(
+                    onTap: () => signInWithGoogle(),
+                    imagePath: '../lib/images/icon.png'),
 
                 const SizedBox(height: 50),
 
@@ -186,16 +210,22 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 50),
 
                 // google + apple sign in buttons
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // google button
-                    SquareTile(imagePath: '../lib/images/google.png', size: 50),
+                    SquareTile(
+                        onTap: () => signInWithGoogle(),
+                        imagePath: '../lib/images/google.png',
+                        size: 50),
 
-                    SizedBox(width: 25),
+                    const SizedBox(width: 25),
 
                     // apple button
-                    SquareTile(imagePath: '../lib/images/apple.png', size: 50)
+                    SquareTile(
+                        onTap: () => signInWithGoogle(),
+                        imagePath: '../lib/images/apple.png',
+                        size: 50)
                   ],
                 ),
 
